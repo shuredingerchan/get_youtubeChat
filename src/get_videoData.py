@@ -8,7 +8,7 @@ import time
 from pathlib import Path
 from icecream import ic
 
-def get_videoData_function(year,month,channeljsonPath):
+def get_videoData_function(year,month,dataDir,channeljsonPath):
     API_KEY = os.getenv("YOUTUBEAPI")
     base_url = "https://www.googleapis.com/youtube/v3"
 
@@ -22,9 +22,8 @@ def get_videoData_function(year,month,channeljsonPath):
         ic(endTime)
 
 
-    timeDir = os.getcwd() + "/"  + year + "-" + month
+    timeDir = dataDir + "/"  + year + "-" + month
     os.makedirs(timeDir, exist_ok=True)
-    infos = []
     for streamer_name, channel_URL in channel_ID_config.items():
         if os.path.exists(timeDir + f"/video_list_output/{streamer_name}_videos.csv"):
             print(f"already exists: {streamer_name}")
@@ -33,6 +32,9 @@ def get_videoData_function(year,month,channeljsonPath):
         CHANNEL_ID = channel_URL.split("/")[-1]
         loop = 0
         url = ""
+        #配列初期化
+        infos = []
+        infos.clear
         while True:
             #loop回数チェック
             loop += 1

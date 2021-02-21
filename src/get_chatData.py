@@ -9,6 +9,25 @@ from icecream import ic
 import os
 import signal
 
+def replaeceString(string):
+        #タイトルからファイル文字不可文字を消す
+        string = string.replace(" ","")
+        string = string.replace("/","_")
+        string = string.replace("|","_")
+        string = string.replace(":","_")
+        string = string.replace("?","_")
+        string = string.replace("<","_")
+        string = string.replace(">","_")
+        string = string.replace("*","_")
+        string = string.replace('"',"_")
+        string = string.replace(',',"_")
+        string = string.replace('"',"_")
+        if "EOF" in string.upper():
+            string = string.upper().replace("EOF", "_")        
+        string = string.replace('EOF',"_")        
+        rep_string = string.replace(".","_")
+        return rep_string
+
 def chatdataInsert(samp):
     #スパチャ、メンバー加入振り分け
     if "liveChatTextMessageRenderer" in samp["replayChatItemAction"]["actions"][0]["addChatItemAction"]["item"]:
@@ -18,9 +37,14 @@ def chatdataInsert(samp):
     else:
         check3 = str(samp["replayChatItemAction"]["actions"][0]["addChatItemAction"]["item"])
         ic(check3)
-    timeSimpleText = str(samp["replayChatItemAction"]["actions"][0]["addChatItemAction"]["item"][chatType]["timestampText"]["simpleText"])
-    simpleText = str(samp["replayChatItemAction"]["actions"][0]["addChatItemAction"]["item"][chatType]["authorName"]["simpleText"])
-    
+    tmptimeSimpleText = str(samp["replayChatItemAction"]["actions"][0]["addChatItemAction"]["item"][chatType]["timestampText"]["simpleText"])
+    timeSimpleText = replaeceString(tmptimeSimpleText)
+    #ic(timeSimpleText)
+
+    tmpusername = str(samp["replayChatItemAction"]["actions"][0]["addChatItemAction"]["item"][chatType]["authorName"]["simpleText"])
+    username = replaeceString(tmpusername)
+    #ic(username)
+
     #debug
     text = ""
     if "message" in samp["replayChatItemAction"]["actions"][0]["addChatItemAction"]["item"][chatType]:
@@ -31,25 +55,23 @@ def chatdataInsert(samp):
                 else:
                     tmppart = str(message["emoji"]["image"]["accessibility"]["accessibilityData"]["label"])
                 textpart = "emojiId[" + tmppart + "]"
+                textpart = textpart.replace(",","_")                
             else:
                 textpart = str(message["text"])
                 textpart = textpart.replace(",","_")                
             text = text + textpart
-
-    userId = str(samp["replayChatItemAction"]["actions"][0]["addChatItemAction"]["item"][chatType]["id"])
+            #ic(text)
     try:
-        cliantId = str(samp["replayChatItemAction"]["actions"][0]["addChatItemAction"]["clientId"])
-    except:
-        cliantId = "NocliantId"    
-    try:
-        paid = str(samp["replayChatItemAction"]["actions"][0]["addChatItemAction"]["item"][chatType]["purchaseAmountText"]["simpleText"])
+        tmppaid = str(samp["replayChatItemAction"]["actions"][0]["addChatItemAction"]["item"][chatType]["purchaseAmountText"]["simpleText"])
+        paid = tmppaid.replace("," ,"")           
+        ic(paid)
     except:
         paid = "0"        
     try:
         membershipHistory = str(samp["replayChatItemAction"]["actions"][0]["addChatItemAction"]["item"][chatType]["authorBadges"][0]["liveChatAuthorBadgeRenderer"]["accessibility"]["accessibilityData"]["label"])
     except:    
         membershipHistory = "通常視聴者"
-    chatdataFull =  timeSimpleText + "," +simpleText + "," + membershipHistory + "," + text + ","  + paid + "," + userId + "," + cliantId
+    chatdataFull =  username + "," + timeSimpleText + "," + membershipHistory + "," + text + ","  + paid
     return chatdataFull
 
 def get_continuation(ytInitialData):
@@ -70,16 +92,7 @@ def get_chatData(inputDir,inputvideoListPath):
         streamer = row_line["streamer_name"]
         tmpTitle =  row_line["title"]
         #タイトルからファイル文字不可文字を消す
-        tmpTitle = tmpTitle.replace(" ","")
-        tmpTitle = tmpTitle.replace("/","_")
-        tmpTitle = tmpTitle.replace("|","_")
-        tmpTitle = tmpTitle.replace(":","_")
-        tmpTitle = tmpTitle.replace("?","_")
-        tmpTitle = tmpTitle.replace("<","_")
-        tmpTitle = tmpTitle.replace(">","_")
-        tmpTitle = tmpTitle.replace("*","_")
-        tmpTitle = tmpTitle.replace('"',"_")
-        title = tmpTitle.replace(".","_")
+        title = replaeceString(tmpTitle)
         ic(title)
         target_url = "https://www.youtube.com/watch?v=" + videoId
         dict_str = ""
@@ -99,12 +112,13 @@ def get_chatData(inputDir,inputvideoListPath):
             print(f"already exists:" + title)
             continue
         #1行目
-        indexName = "時間,ユーザー名,メンバーシップ暦,テキスト,スパチャ額,ユーザーID？,クライアントId\n"
+        indexName = "user,time,memberhistory,text,superChatPaid\n"
+        ic(indexName)
         comment_data.append(indexName)
 
         # まず動画ページにrequestsを実行しhtmlソースを手に入れてlive_chat_replayの先頭のurlを入手
         resp = session.get(target_url)
-        resp.html.render()
+        resp.html.render(sleep=3)
 
         #continuation_prefix = "https://www.youtube.com/live_chat_replay?continuation="
 #        for iframe in resp.html.find("iframe"):
@@ -134,7 +148,6 @@ def get_chatData(inputDir,inputvideoListPath):
                 for samp in dics["continuationContents"]["liveChatContinuation"]["actions"][1:]:
                     #ctrl+Cで止める用
                     signal.signal(signal.SIGINT, signal.SIG_DFL)
-
                     if 'addChatItemAction' not in samp["replayChatItemAction"]["actions"][0]:
                         continue
                     if 'item' not in samp["replayChatItemAction"]["actions"][0]["addChatItemAction"]:
@@ -150,14 +163,14 @@ def get_chatData(inputDir,inputvideoListPath):
                         # メンバーシップ
                         time = str(samp["replayChatItemAction"]["actions"][0]["addChatItemAction"]["item"]["liveChatMembershipItemRenderer"]["timestampText"]["simpleText"])
                         name = str(samp["replayChatItemAction"]["actions"][0]["addChatItemAction"]["item"]["liveChatMembershipItemRenderer"]["authorName"]["simpleText"])
-                        mtext = time + "," + name + "\n"
+                        mtext = name + "," + time + "\n"
                         memberText.append(mtext)
                         continue
                     if "liveChatTickerSponsorItemRenderer" in samp["replayChatItemAction"]["actions"][0]["addChatItemAction"]["item"]:
                         # メンバーシップ
                         time = str(samp["replayChatItemAction"]["actions"][0]["addChatItemAction"]["item"]["liveChatTickerSponsorItemRenderer"]["timestampText"]["simpleText"])
                         name = str(samp["replayChatItemAction"]["actions"][0]["addChatItemAction"]["item"]["liveChatTickerSponsorItemRenderer"]["authorName"]["simpleText"])
-                        mtext = time + "," + name + "\n"
+                        mtext = name + "," + time + "\n"
                         memberText.append(mtext)
                         continue
                     if "liveChatPlaceholderItemRenderer" in samp["replayChatItemAction"]["actions"][0]["addChatItemAction"]["item"]:
@@ -172,6 +185,7 @@ def get_chatData(inputDir,inputvideoListPath):
             # next_urlが入手できなくなったら終わり
             except:
                 break
+        ic(len(comment_data))
         with open(filePath, mode='w', encoding="utf-8") as f:
             f.writelines(comment_data)
         #メンバーシップ加入データを書き込む
@@ -179,5 +193,5 @@ def get_chatData(inputDir,inputvideoListPath):
         membershipPath = membershipDir + "\\" + title + ".csv"
         os.makedirs(membershipDir, exist_ok=True)
         with open(membershipPath, mode='w', encoding="utf-8") as f:
-                f.writelines(memberText)           
+                    f.writelines(memberText)           
     print("実行終了")
